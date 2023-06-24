@@ -21,24 +21,28 @@ $(() => {
         return;
       }
 
-      previewImage(files[0], imageUrl => {
+      previewImage(files[0], (imageUrl) => {
         imagePreviewElement.css('background-image', 'url(' + imageUrl + ')');
         imagePreviewElement.removeClass('hidden');
       });
 
       // we are safe to enable submit
-      enableSubmitButton(); 
+      enableSubmitButton();
     }
   });
 
   function previewImage(file, callback) {
     var reader = new FileReader();
 
-    reader.addEventListener("load", function() {
-      if (!!callback) {
-        callback(reader.result);
-      }
-    }, false);
+    reader.addEventListener(
+      'load',
+      function () {
+        if (!!callback) {
+          callback(reader.result);
+        }
+      },
+      false
+    );
 
     if (file) {
       reader.readAsDataURL(file);
@@ -55,14 +59,14 @@ $(() => {
       submittingForm = true;
       let files = inputFileElement.prop('files');
       let formData = new FormData();
-  
+
       formData.append('file', files[0]);
 
       submitButton.text('Classifying...');
-  
+
       // prevent further submits
-      disableSubmitButton();  
-  
+      disableSubmitButton();
+
       // submit form
       $.ajax(url, {
         method: 'POST',
@@ -72,54 +76,59 @@ $(() => {
         enctype: 'multipart/form-data',
         processData: false,
         contentType: false,
-      }).done(data => {
-        console.log('Data: ' + JSON.stringify(data));
-  
-        try {
-          if (!data || !data.labels) {
-            throw 'Unable to extract labels';
+      })
+        .done((data) => {
+          console.log('Data: ' + JSON.stringify(data));
+
+          try {
+            if (!data || !data.labels) {
+              throw 'Unable to extract labels';
+            }
+            // console.log('labels', data.labels);
+            let labels = data.labels;
+
+            // clear list
+            labelListElement.empty();
+
+            labels.forEach((label) => {
+              let labelItem = $("<div class='list-item' />");
+
+              labelItem.text(label);
+
+              labelListElement.append(labelItem);
+            });
+
+            labelsElement.removeClass('hidden');
+            errorElement.addClass('hidden');
+          } catch (error) {
+            // this probably means that response is not what we expected
+            setError('Unrecoverable Error: ' + error);
           }
-            
-          let labels = data.labels;
-  
-          // clear list
-          labelListElement.empty();
+        })
+        .fail((jqXHR) => {
+          console.error('Error: ' + jqXHR.responseText);
 
-          labels.forEach(label => {
-            let labelItem = $('<div class=\'list-item\' />');
-            
-            labelItem.text(label);
-            
-            labelListElement.append(labelItem);
-          });
+          try {
+            let errorThrown = JSON.parse(jqXHR.responseText);
 
-          labelsElement.removeClass('hidden');
-          errorElement.addClass('hidden');
-        } catch (error) {
-          // this probably means that response is not what we expected
-          setError('Unrecoverable Error: ' + error);
-        }
-      }).fail(jqXHR => {
-        console.error('Error: ' + jqXHR.responseText);
-  
-        try {
-          let errorThrown = JSON.parse(jqXHR.responseText);
-  
-          if (!errorThrown.error) {
-            throw 'Error message not found';
+            if (!errorThrown.error) {
+              throw 'Error message not found';
+            }
+
+            setError(errorThrown.error);
+          } catch (error) {
+            // this probably means that response is not what we expected
+            setError('Unrecoverable Error: ' + error);
           }
-
-          setError(errorThrown.error);
-        } catch (error) {
-          // this probably means that response is not what we expected
-          setError('Unrecoverable Error: ' + error);
-        }
-      }).always(() => { // make sure to enable submit button after we get any result
-        enableSubmitButton();
-      });
-    } catch (error) { // make sure to enable submit button on any errors
+        })
+        .always(() => {
+          // make sure to enable submit button after we get any result
+          enableSubmitButton();
+        });
+    } catch (error) {
+      // make sure to enable submit button on any errors
       console.error('Error submitting form: ' + error);
-      
+
       setError('Error submitting form: ' + error);
 
       enableSubmitButton();
@@ -128,7 +137,7 @@ $(() => {
 
   function setError(error) {
     errorElement.text(error);
-  
+
     labelsElement.addClass('hidden');
     errorElement.removeClass('hidden');
   }
